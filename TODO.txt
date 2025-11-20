@@ -1,0 +1,54 @@
+TODO:
+
+-tune vision to real world
+
+autos
+-close and far 4 piece + subs
+-maybe middle hug sides 2 piece
+
+
+------------------------------- Controller Layouts --------------------------------------
+
+Driver:
+
+A: -                 Arm Test
+B: -                 Wrist Test
+X: -                 Algae Wack
+Y: -                 Elevator Test
+
+Left Bumper: Left Score
+Right Bumper: Right Score
+
+Left Trigger: Slow Mode
+Right Trigger: Coral Intake
+
+Back Button: Enable Auto Line up 
+Start Button: Zero heading
+
+Left Stick: X,Y Drive
+Right Stick: Rotation Drive
+
+D-Pad: L1 - L4 Set position
+
+---------------------------------------
+
+Operator:
+
+A: Algae Wack
+B: -
+X: -
+Y: Set Elevator to Coral Jam Height
+
+Left Bumper: -
+Right Bumper: Stow all
+
+Left Trigger: -
+Right Trigger: -
+
+Back Button: Disable Elevator  
+Start Button: -
+
+Left Stick: X: -
+Right Stick: Coral Intake Manual - Need to Hold Down stick
+
+D-Pad: L1 - L4 Set position

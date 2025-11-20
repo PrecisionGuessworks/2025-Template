@@ -1,0 +1,91 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 1.3841517857142855,
+        "y": 0.7931361607142855
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.5918773280785707,
+        "y": 1.9714538375449022
+      },
+      "isLocked": false,
+      "linkedName": "LoadBottomRight"
+    },
+    {
+      "anchor": {
+        "x": 3.6693080357142858,
+        "y": 2.999944196428571
+      },
+      "prevControl": {
+        "x": 3.4771683673469393,
+        "y": 2.737850765306122
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "C"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 0.8523622047244094,
+      "maxWaypointRelativePos": 1.0,
+      "constraints": {
+        "maxVelocity": 1.5,
+        "maxAcceleration": 2.0,
+        "maxAngularVelocity": 400.0,
+        "maxAngularAcceleration": 600.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeCoralRollerSlow",
+      "waypointRelativePos": 0.28740157480314965,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeCoralRollerSlow"
+        }
+      }
+    },
+    {
+      "name": "CoralMoveScore",
+      "waypointRelativePos": 0.6992739778372148,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "CoralMoveScore"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.5,
+    "maxAcceleration": 3.5,
+    "maxAngularVelocity": 300.0,
+    "maxAngularAcceleration": 500.0,
+    "nominalVoltage": 12.1,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 56.05641298024819
+  },
+  "reversed": false,
+  "folder": "Right",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 54.36019080191324
+  },
+  "useDefaultConstraints": true
+}

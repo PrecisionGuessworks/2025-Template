@@ -10,6 +10,12 @@ import com.ctre.phoenix6.sim.CANcoderSimState;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.quixlib.motorcontrol.MechanismRatio;
 import frc.quixlib.phoenix.PhoenixUtil;
+import frc.robot.Constants;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.units.measure.ImmutableAngle;
+import edu.wpi.first.units.measure.ImmutableAngularVelocity;
+
 
 public class QuixCANCoder implements QuixAbsoluteEncoder {
   private static final double kCANTimeoutS = 0.1; // s
@@ -17,16 +23,23 @@ public class QuixCANCoder implements QuixAbsoluteEncoder {
   private final CANcoder m_cancoder;
   private final CANcoderSimState m_simState;
   private final MechanismRatio m_ratio;
+  private final SensorDirectionValue m_direction;
 
   private final QuixStatusSignal m_positionSignal;
   private final QuixStatusSignal m_absolutePositionSignal;
   private final QuixStatusSignal m_velocitySignal;
 
-  public QuixCANCoder(final CANDeviceID canID, final MechanismRatio ratio) {
+  private final DoublePublisher m_positionPublisher;
+  private final DoublePublisher m_absolutePositionPublisher;
+  private final DoublePublisher m_velocityPublisher;
+
+
+  public QuixCANCoder(final CANDeviceID canID, final MechanismRatio ratio, final SensorDirectionValue direction) {
     m_canID = canID;
     m_cancoder = new CANcoder(canID.deviceNumber, canID.CANbusName);
     m_simState = m_cancoder.getSimState();
     m_ratio = ratio;
+    m_direction = direction;
 
     m_positionSignal =
         new QuixStatusSignal<>(m_cancoder.getPosition(), this::fromNativeSensorPosition);
@@ -39,15 +52,41 @@ public class QuixCANCoder implements QuixAbsoluteEncoder {
     m_cancoder.hasResetOccurred();
 
     SmartDashboard.putBoolean("CANCoder Configuration " + m_canID.toString(), setConfiguration());
+    
+    m_positionPublisher =
+        NetworkTableInstance.getDefault()
+            .getDoubleTopic("CanCoder " + m_canID + ": Sensor Position")
+            .publish();
+    m_absolutePositionPublisher =
+        NetworkTableInstance.getDefault()
+            .getDoubleTopic("CanCoder " + m_canID + ": Absolute Position")
+            .publish();
+    m_velocityPublisher =
+        NetworkTableInstance.getDefault()
+            .getDoubleTopic("CanCoder " + m_canID + ": Velocity")
+            .publish();
+  
+
   }
+
+  public void logSensorState() {
+    m_positionPublisher.set(getPosition());
+    m_absolutePositionPublisher.set(getAbsPosition());
+    m_velocityPublisher.set(getVelocity());
+
+
+  }
+    
 
   public boolean setConfiguration() {
     boolean allSuccess = true;
 
     // Set configuration.
     CANcoderConfiguration config = new CANcoderConfiguration();
-    config.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
+    config.MagnetSensor.SensorDirection = m_direction;
     config.MagnetSensor.MagnetOffset = 0.0;
+    config.MagnetSensor.AbsoluteSensorDiscontinuityPoint = 0.5;
+
 
     allSuccess &=
         PhoenixUtil.retryUntilSuccess(
@@ -116,17 +155,17 @@ public class QuixCANCoder implements QuixAbsoluteEncoder {
 
   public double getPosition() {
     m_positionSignal.refresh();
-    return (double) m_positionSignal.getRawValue();
+    return ((ImmutableAngle) m_positionSignal.getRawValue()).baseUnitMagnitude();
   }
 
   public double getAbsPosition() {
     m_absolutePositionSignal.refresh();
-    return (double) m_absolutePositionSignal.getRawValue();
+    return ((ImmutableAngle) m_absolutePositionSignal.getRawValue()).baseUnitMagnitude();
   }
 
   public double getVelocity() {
     m_velocitySignal.refresh();
-    return (double) m_velocitySignal.getRawValue();
+    return ((ImmutableAngularVelocity) m_velocitySignal.getRawValue()).baseUnitMagnitude();
   }
 
   private double toNativeSensorPosition(final double pos) {

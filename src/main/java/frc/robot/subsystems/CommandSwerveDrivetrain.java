@@ -16,6 +16,7 @@ import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
@@ -29,7 +30,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-
+import frc.robot.Constants;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -40,6 +41,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private static final double kSimLoopPeriod = 0.005; // 5 ms
     private Notifier m_simNotifier = null;
     private double m_lastSimTime;
+    public boolean m_Lineup =  Constants.Lineup;
 
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
@@ -55,7 +57,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
-
+    public Pose2d PoseState = new Pose2d(0,0,Rotation2d.fromDegrees(0));
     /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
         new SysIdRoutine.Config(
@@ -137,28 +139,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             startSimThread();
         }
         configureAutoBuilder();
-        SmartDashboard.putData("Swerve Drive", new Sendable() {
-            @Override
-            public void initSendable(SendableBuilder builder) {
-            
-            builder.setSmartDashboardType("SwerveDrive");
-            
-            builder.addDoubleProperty("Front Left Angle", () -> getModule(0).getCurrentState().angle.getDegrees(), null);
-            builder.addDoubleProperty("Front Left Velocity", () -> getModule(0).getCurrentState().speedMetersPerSecond, null);
-        
-            builder.addDoubleProperty("Front Right Angle", () -> getModule(1).getCurrentState().angle.getDegrees(), null);
-            builder.addDoubleProperty("Front Right Velocity", () -> getModule(1).getCurrentState().speedMetersPerSecond, null);
-        
-            builder.addDoubleProperty("Back Left Angle", () -> getModule(2).getCurrentState().angle.getDegrees(), null);
-            builder.addDoubleProperty("Back Left Velocity", () -> getModule(2).getCurrentState().speedMetersPerSecond, null);
-        
-            builder.addDoubleProperty("Back Right Angle", () -> getModule(3).getCurrentState().angle.getDegrees(), null);
-            builder.addDoubleProperty("Back Right Velocity", () -> getModule(3).getCurrentState().speedMetersPerSecond, null);
-        
-            builder.addDoubleProperty("Robot Angle", () -> getPigeon2().getYaw().getValueAsDouble(), null); //getState().Pose.getRotation().getDegrees()
-
-            }
-        });
+        updateSwerveElastic();
     }
 
     /**
@@ -184,6 +165,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             startSimThread();
         }
         configureAutoBuilder();
+        updateSwerveElastic();
     }
 
     /**
@@ -217,6 +199,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             startSimThread();
         }
         configureAutoBuilder();
+        updateSwerveElastic();
     }
 
     private void configureAutoBuilder() {
@@ -234,9 +217,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 ),
                 new PPHolonomicDriveController(
                     // PID constants for translation
-                    new PIDConstants(10, 0, 0),
+                    new PIDConstants(Constants.Drive.PTranslation, Constants.Drive.ITranslation, Constants.Drive.DTranslation),
                     // PID constants for rotation
-                    new PIDConstants(7, 0, 0)
+                    new PIDConstants(Constants.Drive.PRotation, Constants.Drive.IRotation, Constants.Drive.DRotation)
                 ),
                 config,
                 // Assume the path needs to be flipped for Red vs Blue, this is normally the case
@@ -299,7 +282,18 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 m_hasAppliedOperatorPerspective = true;
             });
         }
+        SmartDashboard.putBoolean(
+          "Auto Lineup", m_Lineup);
         
+    }
+
+    public void setLineup(boolean lineup){
+        m_Lineup = lineup;
+        Constants.PoseSoring = !lineup;
+
+    }
+    public boolean getLineup(){
+        return m_Lineup;
     }
 
     private void startSimThread() {
@@ -315,5 +309,30 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         m_simNotifier.startPeriodic(kSimLoopPeriod);
+    }
+
+    private void updateSwerveElastic(){
+        SmartDashboard.putData("Swerve Drive", new Sendable() {
+            @Override
+            public void initSendable(SendableBuilder builder) {
+            
+            builder.setSmartDashboardType("SwerveDrive");
+            
+            builder.addDoubleProperty("Front Left Angle", () -> getModule(0).getCurrentState().angle.getDegrees(), null);
+            builder.addDoubleProperty("Front Left Velocity", () -> getModule(0).getCurrentState().speedMetersPerSecond, null);
+        
+            builder.addDoubleProperty("Front Right Angle", () -> getModule(1).getCurrentState().angle.getDegrees(), null);
+            builder.addDoubleProperty("Front Right Velocity", () -> getModule(1).getCurrentState().speedMetersPerSecond, null);
+        
+            builder.addDoubleProperty("Back Left Angle", () -> getModule(2).getCurrentState().angle.getDegrees(), null);
+            builder.addDoubleProperty("Back Left Velocity", () -> getModule(2).getCurrentState().speedMetersPerSecond, null);
+        
+            builder.addDoubleProperty("Back Right Angle", () -> getModule(3).getCurrentState().angle.getDegrees(), null);
+            builder.addDoubleProperty("Back Right Velocity", () -> getModule(3).getCurrentState().speedMetersPerSecond, null);
+        
+            builder.addDoubleProperty("Robot Angle", () -> getPigeon2().getYaw().getValueAsDouble(), null); //getState().Pose.getRotation().getDegrees()
+
+            }
+        });
     }
 }

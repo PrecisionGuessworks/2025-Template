@@ -23,6 +23,7 @@ import frc.robot.Constants;
 
 public class IntakeSubsystem extends SubsystemBase {
   public final DigitalInput m_beamBreak = new DigitalInput(Constants.Intake.beamBreakPort);
+  
 
   private final QuixTalonFX m_rollerMotor =
       new QuixTalonFX(
@@ -32,6 +33,7 @@ public class IntakeSubsystem extends SubsystemBase {
               .setInverted(Constants.Intake.rollerMotorInvert)
               .setSupplyCurrentLimit(40.0)
               .setStatorCurrentLimit(80.0)
+              .setBrakeMode()
               .setPIDConfig(Constants.Intake.rollerVelocitySlot, Constants.Intake.rollerPIDConfig));
 
   private final QuixTalonFX m_deployMotor =
@@ -41,7 +43,23 @@ public class IntakeSubsystem extends SubsystemBase {
           QuixTalonFX.makeDefaultConfig()
               .setInverted(Constants.Intake.deployMotorInvert)
               .setBrakeMode()
-              .setSupplyCurrentLimit(40.0)
+              .setSupplyCurrentLimit(30.0)
+              .setStatorCurrentLimit(40.0)
+              .setMotionMagicConfig(
+                  Constants.Intake.deployMaxVelocity,
+                  Constants.Intake.deployMaxAcceleration,
+                  Constants.Intake.deployMaxJerk)
+              .setPIDConfig(Constants.Intake.deployPositionSlot, Constants.Intake.deployPIDConfig)
+              .setBootPositionOffset(Constants.Intake.startingAngle)
+              .setReverseSoftLimit(Constants.Intake.minAngle)
+              .setForwardSoftLimit(Constants.Intake.maxAngle));
+
+  private final QuixTalonFX m_deployFollower = new QuixTalonFX(
+                Constants.Intake.deployFollowerID,
+                m_deployMotor,
+                Constants.Intake.followerInvert,
+                QuixTalonFX.makeDefaultConfig().setBrakeMode()
+              .setSupplyCurrentLimit(30.0)
               .setStatorCurrentLimit(40.0)
               .setMotionMagicConfig(
                   Constants.Intake.deployMaxVelocity,
@@ -54,6 +72,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private double m_targetAngle = Constants.Intake.startingAngle;
   private Timer m_lastPieceTimer = new Timer();
+  public boolean m_hasPiece = false;
 
   public IntakeSubsystem(Link2d intakeArmViz, Link2d intakeRollerViz) {
     m_lastPieceTimer.start();
@@ -68,7 +87,12 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public boolean hasPiece() {
-    return m_beamBreak.get();
+    //m_rollerMotor.getSupplyCurrent();
+    return m_hasPiece;
+  }
+
+  public void setHasPiece(boolean hasPiece) {
+    m_hasPiece = hasPiece;
   }
 
   public boolean recentlyHadPiece() {
@@ -98,6 +122,14 @@ public class IntakeSubsystem extends SubsystemBase {
     }
   }
 
+  public void setRollerCurrnt (double current){
+    m_rollerMotor.setStatorCurrentLimit(current);
+  }
+
+  public double getRollerCurrent (){
+    return m_rollerMotor.getSupplyCurrent();
+  }
+
   public void disabledInit() {
     m_deployMotor.setBrakeMode(true);
   }
@@ -114,6 +146,7 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     SmartDashboard.putBoolean("Intake: Beam Break", m_beamBreak.get());
+    SmartDashboard.putBoolean("Intake: Has Piece", hasPiece());
 
     m_deployMotor.setMotionMagicPositionSetpoint(
         Constants.Intake.deployPositionSlot, m_targetAngle);
@@ -134,6 +167,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     m_rollerMotor.logMotorState();
     m_deployMotor.logMotorState();
+    m_deployFollower.logMotorState();
   }
 
   // --- BEGIN STUFF FOR SIMULATION ---

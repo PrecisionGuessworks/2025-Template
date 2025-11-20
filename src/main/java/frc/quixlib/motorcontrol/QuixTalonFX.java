@@ -8,12 +8,15 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.DynamicMotionMagicVoltage;
 import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.MotionMagicExpoTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.MotionMagicExpoVoltage;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
@@ -43,6 +46,8 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
   private final VelocityVoltage m_velocityControl = new VelocityVoltage(0);
   private final PositionVoltage m_positionControl = new PositionVoltage(0);
   private final MotionMagicVoltage m_motionMagicControl = new MotionMagicVoltage(0);
+  private final MotionMagicExpoVoltage m_motionMagicExpoControl = new MotionMagicExpoVoltage(0);
+  private final MotionMagicExpoTorqueCurrentFOC m_motionMagicExpoTorqueControl = new MotionMagicExpoTorqueCurrentFOC(0);
   private final DynamicMotionMagicVoltage m_dynamicMotionMagicControl =
       new DynamicMotionMagicVoltage(0, 0, 0, 0);
 
@@ -76,7 +81,16 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     private double motionMagicCruiseVelocity = 0.0; // In MechanismRatio units
     private double motionMagicAcceleration = 0.0; // In MechanismRatio units
     private double motionMagicJerk = 0.0; // In MechanismRatio units
+    private double motionMagicExpo_kV = 0.12; // 
+    private double motionMagicExpo_kA = 0.1; // 
     private double bootPositionOffset = 0.0; // In MechanismRatio units
+    private FeedbackSensorSourceValue feedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
+    private int FeedbackRemoteSensorCANID = 0;
+    private double FeedbackSensorOffset = 0.0;
+    private double FeedbackSensorMechRatio = 1.0;
+    private double FeedbackSensorRotorRatio = 1.0;
+
+
 
     public QuixTalonFXConfiguration setBrakeMode() {
       NEUTRAL_MODE = NeutralModeValue.Brake;
@@ -134,14 +148,27 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
       motionMagicJerk = jerk;
       return this;
     }
+    public QuixTalonFXConfiguration setMotionMagicConfig(
+        final double cruiseVelocity, final double acceleration, final double jerk,final double MotionMagicExpo_kV,final double MotionMagicExpo_kA) {
+      motionMagicCruiseVelocity = cruiseVelocity;
+      motionMagicAcceleration = acceleration;
+      motionMagicJerk = jerk;
+      motionMagicExpo_kV = MotionMagicExpo_kV;
+      motionMagicExpo_kA = MotionMagicExpo_kA;
+      return this;
+    }
 
     public QuixTalonFXConfiguration setBootPositionOffset(final double pos) {
       bootPositionOffset = pos;
       return this;
     }
 
-    public QuixTalonFXConfiguration setCANcoderConfig(final int RemoteSensorID) { // remote option, offset, senor ratio to mech and rotor
-      
+    public QuixTalonFXConfiguration setFeedbackConfig(final FeedbackSensorSourceValue FeedbackSensorSource, final int CANID, final double sensorOffset, final MechanismRatio RotorToSensorRatio, final MechanismRatio SensorToMechRatio) { // remote option, offset, senor ratio to mech and rotor
+    feedbackSensorSource = FeedbackSensorSource;
+    FeedbackRemoteSensorCANID = CANID;
+    FeedbackSensorOffset = sensorOffset;
+    FeedbackSensorMechRatio = SensorToMechRatio.inverseReduction();
+    FeedbackSensorRotorRatio = RotorToSensorRatio.inverseReduction();
       return this;
     }
 
@@ -153,6 +180,19 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
       config.MotorOutput.Inverted =
           INVERTED ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
       config.MotorOutput.DutyCycleNeutralDeadband = 0.0;
+
+      //CANcoder config
+     
+      config.Feedback.FeedbackSensorSource = feedbackSensorSource;
+      config.Feedback.FeedbackRemoteSensorID = FeedbackRemoteSensorCANID; // Local feedback
+      //config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
+      config.Feedback.FeedbackRotorOffset = FeedbackSensorOffset;
+      config.Feedback.RotorToSensorRatio = FeedbackSensorRotorRatio;
+      config.Feedback.SensorToMechanismRatio = FeedbackSensorMechRatio;
+
+      //config.HardwareLimitSwitch.
+
+
 
       if (Robot.isReal()) {
         // TODO: Figure out why stator current limits break simulation.
@@ -188,6 +228,8 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
       config.MotionMagic.MotionMagicAcceleration =
           toNativeSensorVelocity.apply(motionMagicAcceleration);
       config.MotionMagic.MotionMagicJerk = toNativeSensorVelocity.apply(motionMagicJerk);
+      config.MotionMagic.MotionMagicExpo_kV = motionMagicExpo_kV;
+      config.MotionMagic.MotionMagicExpo_kA = motionMagicExpo_kA;
 
       return config;
     }
@@ -233,6 +275,7 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     SmartDashboard.putBoolean("TalonFX Configuration " + m_canID.toString(), setConfiguration());
 
     // Set up logging.
+    
     m_percentOutputPublisher =
         NetworkTableInstance.getDefault()
             .getDoubleTopic("TalonFX " + m_canID + ": Percent Output")
@@ -313,7 +356,7 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     // Disable all signals that have not been explicitly defined.
     allSuccess &=
         PhoenixUtil.retryUntilSuccess(
-            () -> m_controller.optimizeBusUtilization(kCANTimeoutS),
+            () -> m_controller.optimizeBusUtilization(0,kCANTimeoutS),
             "TalonFX " + m_canID + ": optimizeBusUtilization");
 
     // Block until we get valid signals.
@@ -397,6 +440,19 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
                 .CurrentLimits,
             kCANTimeoutS);
   }
+  public void setStatorCurrentLimit(double stator, double supply) {
+    m_config.STATOR_CURRENT_LIMIT = stator;
+    m_config.SUPPLY_CURRENT_LIMIT = supply;
+
+    // TODO: Consider a shorter non-blocking timeout
+    m_controller
+        .getConfigurator()
+        .apply(
+            m_config.toTalonFXConfiguration(
+                    this::toNativeSensorPosition, this::toNativeSensorVelocity)
+                .CurrentLimits,
+            kCANTimeoutS);
+  }
 
   public void setPercentOutput(final double percent) {
     m_dutyCycleControl.Output = percent;
@@ -435,7 +491,22 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     m_motionMagicControl.Slot = slot;
     m_motionMagicControl.Position = toNativeSensorPosition(setpoint);
     m_motionMagicControl.FeedForward = feedforwardVolts;
+    m_motionMagicControl.EnableFOC = true;
     m_controller.setControl(m_motionMagicControl);
+  }
+
+  public void setMotionMagicPositionSetpointExpo(final int slot, final double setpoint) {
+    setMotionMagicPositionSetpointExpo(slot, setpoint, 0.0);
+  }
+
+  public void setMotionMagicPositionSetpointExpo(
+      final int slot, final double setpoint, final double feedforwardVolts) {
+    m_motionMagicExpoControl.Slot = slot;
+    m_motionMagicExpoControl.Position = toNativeSensorPosition(setpoint);
+    m_motionMagicExpoControl.FeedForward = feedforwardVolts;
+    m_motionMagicExpoControl.EnableFOC = true;
+    //m_motionMagicExpoControl.motionMagicConfigs.Expo = 0.0;
+    m_controller.setControl(m_motionMagicExpoControl);
   }
 
   public void setDynamicMotionMagicPositionSetpoint(
@@ -460,6 +531,7 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     m_dynamicMotionMagicControl.Velocity = toNativeSensorVelocity(velocity);
     m_dynamicMotionMagicControl.Acceleration = toNativeSensorVelocity(acceleration);
     m_dynamicMotionMagicControl.Jerk = toNativeSensorVelocity(jerk);
+    m_dynamicMotionMagicControl.EnableFOC = true;
     m_controller.setControl(m_dynamicMotionMagicControl);
   }
 
@@ -472,6 +544,7 @@ public class QuixTalonFX implements QuixMotorControllerWithEncoder, AutoCloseabl
     m_velocityControl.Slot = slot;
     m_velocityControl.Velocity = toNativeSensorVelocity(setpoint);
     m_velocityControl.FeedForward = feedforwardVolts;
+    m_voltageControl.EnableFOC = true;
     m_controller.setControl(m_velocityControl);
   }
 

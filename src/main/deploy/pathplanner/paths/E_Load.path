@@ -1,0 +1,101 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 4.962053571428572,
+        "y": 2.827391581632652
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 5.1038265306122454,
+        "y": 2.3647640306122444
+      },
+      "isLocked": false,
+      "linkedName": "E"
+    },
+    {
+      "anchor": {
+        "x": 3.0220025510204085,
+        "y": 2.0886798469387746
+      },
+      "prevControl": {
+        "x": 3.6975236272900736,
+        "y": 2.19534106950767
+      },
+      "nextControl": {
+        "x": 2.313137755102041,
+        "y": 1.9767538265306106
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.3841517857142855,
+        "y": 0.7931361607142855
+      },
+      "prevControl": {
+        "x": 2.245982142857143,
+        "y": 2.051371173469387
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "LoadBottomRight"
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 1.6242544731610373,
+      "rotationDegrees": 54.0
+    }
+  ],
+  "constraintZones": [
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 0,
+      "maxWaypointRelativePos": 0.31839622641509474,
+      "constraints": {
+        "maxVelocity": 2.0,
+        "maxAcceleration": 2.0,
+        "maxAngularVelocity": 540.0,
+        "maxAngularAcceleration": 720.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "IntakeCoralRollerFast",
+      "waypointRelativePos": 1.8641732283464543,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "IntakeCoralRollerFast"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.5,
+    "maxAcceleration": 3.5,
+    "maxAngularVelocity": 300.0,
+    "maxAngularAcceleration": 500.0,
+    "nominalVoltage": 12.1,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 54.36019080191324
+  },
+  "reversed": false,
+  "folder": "Right",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 119.49495581768768
+  },
+  "useDefaultConstraints": true
+}

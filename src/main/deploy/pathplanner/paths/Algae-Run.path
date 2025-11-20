@@ -1,0 +1,71 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 5.7668478260869565,
+        "y": 4.0470108695652165
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 6.9114130434782615,
+        "y": 3.944293478260869
+      },
+      "isLocked": false,
+      "linkedName": "HG_Algae"
+    },
+    {
+      "anchor": {
+        "x": 6.199728260869565,
+        "y": 6.959782608695653
+      },
+      "prevControl": {
+        "x": 6.647282608695651,
+        "y": 6.240760869565218
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": null
+    }
+  ],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 0.18489065606361865,
+      "rotationDegrees": -133.2153615302059
+    }
+  ],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [
+    {
+      "name": "StowArm",
+      "waypointRelativePos": 0.22392051967902588,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "StowArm"
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.5,
+    "maxAcceleration": 3.5,
+    "maxAngularVelocity": 300.0,
+    "maxAngularAcceleration": 500.0,
+    "nominalVoltage": 12.1,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -91.08092418666065
+  },
+  "reversed": false,
+  "folder": "Middle",
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 180.0
+  },
+  "useDefaultConstraints": true
+}

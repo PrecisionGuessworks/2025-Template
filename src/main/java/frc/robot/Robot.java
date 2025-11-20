@@ -13,10 +13,12 @@ import java.text.ParseException;
 
 import com.ctre.phoenix6.Utils;
 import com.pathplanner.lib.commands.PathPlannerAuto;
+import com.pathplanner.lib.commands.PathfindingCommand;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.auto.AutoBuilder;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.simulation.BatterySim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
@@ -27,10 +29,14 @@ import static edu.wpi.first.units.Units.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+// import org.littletonrobotics.junction.LoggedRobot;
+// import org.littletonrobotics.junction.Logger;
+
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
+import com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
@@ -44,8 +50,13 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -59,7 +70,6 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 
 
-
 public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
 
@@ -69,16 +79,44 @@ public class Robot extends TimedRobot {
 
   private String autoName, newAutoName;
 
+  private boolean elevatorOn = false;
+  private boolean lineup = false;
+
   private final Field2d m_field = new Field2d();
   
   Optional<Alliance> ally = DriverStation.getAlliance();
   Optional<Alliance> newAlly;
   private Vision vision;
 
+  private Pose2d[] AveragePose = new Pose2d[25];
+  private int AveragePoseCount = 0;
+
+  StructPublisher<Pose3d> elevatorCarriagepublisher = NetworkTableInstance.getDefault()
+        .getStructTopic("elevatorCarriage", Pose3d.struct).publish();
+  StructPublisher<Pose3d> Zeropublisher = NetworkTableInstance.getDefault()
+        .getStructTopic("Zeropublisher", Pose3d.struct).publish();
+  StructPublisher<Pose3d> Stage1publisher = NetworkTableInstance.getDefault()
+        .getStructTopic("Stage1", Pose3d.struct).publish();
+  StructPublisher<Pose3d> Armpublisher = NetworkTableInstance.getDefault()
+        .getStructTopic("ArmViz", Pose3d.struct).publish();
+  StructPublisher<Pose3d> Wristpublisher = NetworkTableInstance.getDefault()
+        .getStructTopic("WristViz", Pose3d.struct).publish();
+
+  StructPublisher<Pose3d> Coralpublisher = NetworkTableInstance.getDefault()
+        .getStructTopic("CoralViz", Pose3d.struct).publish();
+
   public Robot() {
     m_robotContainer = new RobotContainer();
     vision = new Vision();
+
+    
+        
   }
+
+  // @Override
+  // public void robotInit(){
+  // PathfindingCommand.warmupCommand().schedule();
+  // }
 
   @Override
   public void robotPeriodic() {
@@ -95,7 +133,7 @@ public class Robot extends TimedRobot {
     // if (kUseLimelight) {
     //   var llMeasurement = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
     //   if (llMeasurement != null) {
-    //     m_robotContainer.drivetrain.addVisionMeasurement(llMeasurement.pose, Utils.fpgaToCurrentTime(llMeasurement.timestampSeconds));
+    //     RobotContainer.drivetrain.addVisionMeasurement(llMeasurement.pose, Utils.fpgaToCurrentTime(llMeasurement.timestampSeconds));
     //   }
     // }
     try{
@@ -105,19 +143,127 @@ public class Robot extends TimedRobot {
                 // Change our trust in the measurement based on the tags we can see
                 var estStdDevs = vision.getEstimationStdDevs();
 
-                m_robotContainer.drivetrain.addVisionMeasurement(
-                        est.estimatedPose.toPose2d(), est.timestampSeconds, estStdDevs);
+                RobotContainer.drivetrain.addVisionMeasurement(
+                        // est.estimatedPose.toPose2d(), est.timestampSeconds, estStdDevs);
+                        est.estimatedPose.toPose2d(), Utils.fpgaToCurrentTime(est.timestampSeconds), estStdDevs);
+                  // System.out.println(Utils.fpgaToCurrentTime(est.timestampSeconds)+"||"+est.timestampSeconds);
+                  //System.out.println("Vision Estimation: " + est.estimatedPose.toPose2d());
+        Pose2d pose = est.estimatedPose.toPose2d();
+        double[] poseArray = {pose.getX(), pose.getY(), pose.getRotation().getDegrees()};
+        SmartDashboard.putNumberArray("Camera Current Pose", poseArray);
+        AveragePose[AveragePoseCount] = pose;
+        AveragePoseCount++;
+        if (AveragePoseCount > 24)  AveragePoseCount = 0;
             });
     } catch (Exception e) {
       e.printStackTrace();
     }
-    
+
+    double avgX = 0, avgY = 0, avgRotation = 0;
+    int validPoseCount = 0;
+
+    for (Pose2d pose : AveragePose) {
+      if (pose != null) { // Ensure the pose is not null
+        avgX += pose.getX();
+        avgY += pose.getY();
+        avgRotation += pose.getRotation().getDegrees();
+        validPoseCount++;
+      }
+    }
+
+    if (validPoseCount > 0) {
+      avgX /= validPoseCount;
+      avgY /= validPoseCount;
+      avgRotation /= validPoseCount;
+    }
+
+    double[] poseArray = {Math.round(avgX * 1000.0) / 1000.0, Math.round(avgY * 1000.0) / 1000.0, Math.round(avgRotation * 1000.0) / 1000.0};
+    SmartDashboard.putNumberArray("Camera Current Pose Average", poseArray);
 
 
+  if (m_robotContainer.driver.pov(0).getAsBoolean() == true || m_robotContainer.operator.pov(0).getAsBoolean() == true){
+    RobotContainer.elevator.setHeightLocation(4);
 
+  } else if (m_robotContainer.driver.pov(90).getAsBoolean() == true || m_robotContainer.operator.pov(90).getAsBoolean() == true){
+    RobotContainer.elevator.setHeightLocation(3);
 
+  } else if (m_robotContainer.driver.pov(180).getAsBoolean() == true || m_robotContainer.operator.pov(180).getAsBoolean() == true){
+    RobotContainer.elevator.setHeightLocation(2);
+
+  } else if (m_robotContainer.driver.pov(270).getAsBoolean() == true || m_robotContainer.operator.pov(270).getAsBoolean() == true){
+    RobotContainer.elevator.setHeightLocation(1);
 
   }
+
+  if(m_robotContainer.driver.back().getAsBoolean()) {
+    lineup = true;
+  }
+  if(!m_robotContainer.driver.back().getAsBoolean()&&lineup) {
+    RobotContainer.drivetrain.setLineup(!RobotContainer.drivetrain.getLineup());
+    lineup = false;
+  }
+  if(m_robotContainer.operator.back().getAsBoolean()) {
+    elevatorOn = true;
+  }
+  if(!m_robotContainer.operator.back().getAsBoolean()&&elevatorOn) {
+    RobotContainer.elevator.setElevatorOn(!RobotContainer.elevator.getElevatorOn());
+    elevatorOn = false;
+  }
+  
+  // double leftY = m_robotContainer.operator.getLeftY();
+  // if (Math.abs(leftY) > 0.1) { // Deadband of 0.1
+  //   if (m_robotContainer.operator.leftBumper().getAsBoolean() == true) {
+  //     RobotContainer.climber.setTargetAdjust(leftY);
+  //   }
+  // }
+
+    if (m_robotContainer.operator.rightStick().getAsBoolean() == true) {
+      double rightyop = m_robotContainer.operator.getRightY();
+      RobotContainer.arm.setArmRollerCurrent(45,25);
+      if (Math.abs(rightyop) > 0.1) { // Deadband of 0.1
+      RobotContainer.arm.setRollerVelocity(rightyop*40);
+    } else {
+      RobotContainer.arm.setRollerVelocity(0);
+    }
+  }
+  
+
+
+
+if (!isReal()){
+  // 3d viz
+  final double stage1Height = Constants.Viz3d.stage1Height;
+  final double CarrageHeight = RobotContainer.elevator.getHeight()-Units.inchesToMeters(5);
+  final Pose3d stageOne =
+      Constants.Viz3d.elevatorBase.transformBy(
+          new Transform3d(0, 0, CarrageHeight >= stage1Height ? CarrageHeight-stage1Height : 0, new Rotation3d()));
+  final Pose3d elevatorCarriage =
+        Constants.Viz3d.elevatorBase.transformBy(
+            new Transform3d(0, 0, CarrageHeight+ Units.inchesToMeters(0.5), new Rotation3d()));
+  final Pose3d armViz = elevatorCarriage.transformBy(
+    new Transform3d(0, 0, Units.inchesToMeters(7.7), new Rotation3d(0,Units.degreesToRadians( -RobotContainer.arm.getArmAngle()+90),0)));
+    final Pose3d wristViz = armViz.transformBy(
+    new Transform3d(0, 0, Units.inchesToMeters(11), new Rotation3d(0,Units.degreesToRadians( -RobotContainer.arm.getWristAngle()+90),0)));
+    Pose3d coralViz = new Pose3d(0,0,-1, new Rotation3d());
+    if (RobotContainer.arm.getHasPiece()) {
+    Pose3d drive3d = new Pose3d(RobotContainer.drivetrain.getState().Pose);
+    Pose3d temPose3d = wristViz.transformBy(
+      new Transform3d(Units.inchesToMeters(-3), Units.inchesToMeters(2.4), Units.inchesToMeters(8), new Rotation3d(0,Units.degreesToRadians( 90),0)));
+    coralViz = drive3d.transformBy(
+      new Transform3d(temPose3d.getTranslation(), temPose3d.getRotation()));
+    
+    }
+   
+        
+        elevatorCarriagepublisher.set(elevatorCarriage);
+        Zeropublisher.set(new Pose3d());
+        Stage1publisher.set(stageOne);
+        Armpublisher.set(armViz);
+        Wristpublisher.set(wristViz);
+        Coralpublisher.set(coralViz);
+}
+
+}
 
   @Override
   public void disabledInit() {
@@ -132,7 +278,7 @@ public class Robot extends TimedRobot {
 
         public void initialize()
         {
-            m_robotContainer.drivetrain.getPigeon2().reset();
+            RobotContainer.drivetrain.getPigeon2().reset();
         }
         public boolean isFinished()
         {
@@ -159,13 +305,15 @@ public class Robot extends TimedRobot {
                         if (ally.isPresent()) {
                           if (ally.get() == Alliance.Red) {
                             poses.addAll(path.getAllPathPoints().stream()
-                            .map(point -> new Pose2d(16.541 - point.position.getX(), point.position.getY(), new Rotation2d()))
+                            .map(point -> new Pose2d(Constants.Pose.feildFlip - point.position.getX(),Constants.Pose.feildFlipy - point.position.getY(), new Rotation2d()))
                           .collect(Collectors.toList()));
+                          Elastic.selectTab("RED");
                           }
                           if (ally.get() == Alliance.Blue) {
                             poses.addAll(path.getAllPathPoints().stream()
                             .map(point -> new Pose2d(point.position.getX(), point.position.getY(), new Rotation2d()))
                           .collect(Collectors.toList()));
+                          Elastic.selectTab("BLUE");
                           }
                         }
                         else {
@@ -188,7 +336,7 @@ public class Robot extends TimedRobot {
             }
         }
     }
-    SwerveDriveState state = m_robotContainer.drivetrain.getState();
+    SwerveDriveState state = RobotContainer.drivetrain.getState();
     Pose2d pose = state.Pose;
     m_field.setRobotPose(pose);
     SmartDashboard.putData(m_field);
@@ -223,13 +371,15 @@ public class Robot extends TimedRobot {
                   if (ally.isPresent()) {
                     if (ally.get() == Alliance.Red) {
                       poses.addAll(path.getAllPathPoints().stream()
-                      .map(point -> new Pose2d(16.541 - point.position.getX(), point.position.getY(), new Rotation2d()))
+                      .map(point -> new Pose2d(Constants.Pose.feildFlip - point.position.getX(),Constants.Pose.feildFlipy - point.position.getY(), new Rotation2d()))
                     .collect(Collectors.toList()));
+                    Elastic.selectTab("RED");
                     }
                     if (ally.get() == Alliance.Blue) {
                       poses.addAll(path.getAllPathPoints().stream()
                       .map(point -> new Pose2d(point.position.getX(), point.position.getY(), new Rotation2d()))
                     .collect(Collectors.toList()));
+                    Elastic.selectTab("BLUE");
                     }
                   }
                   else {
@@ -252,7 +402,7 @@ public class Robot extends TimedRobot {
             }
         }
     }
-    SwerveDriveState state = m_robotContainer.drivetrain.getState();
+    SwerveDriveState state = RobotContainer.drivetrain.getState();
     Pose2d pose = state.Pose;
     m_field.setRobotPose(pose);
     SmartDashboard.putData(m_field);
@@ -270,7 +420,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    SwerveDriveState state = m_robotContainer.drivetrain.getState();
+    SwerveDriveState state = RobotContainer.drivetrain.getState();
     Pose2d pose = state.Pose;
     m_field.getObject("path").setPoses();
     m_field.setRobotPose(pose);
@@ -295,7 +445,7 @@ public class Robot extends TimedRobot {
   public void simulationPeriodic() {
 // Update drivetrain simulation
 
-SwerveDriveState state = m_robotContainer.drivetrain.getState();
+SwerveDriveState state = RobotContainer.drivetrain.getState();
 Pose2d pose = state.Pose;
 // Update camera simulation
 vision.simulationPeriodic(pose);

@@ -70,7 +70,7 @@ public class Vision {
             var cameraProp = new SimCameraProperties();
             cameraProp.setCalibration(960, 720, Rotation2d.fromDegrees(90));
             cameraProp.setCalibError(0.35, 0.10);
-            cameraProp.setFPS(35);
+            cameraProp.setFPS(50);
             cameraProp.setAvgLatencyMs(50);
             cameraProp.setLatencyStdDevMs(15);
             // Create a PhotonCameraSim which will update the linked PhotonCamera's values with visible
@@ -149,14 +149,38 @@ public class Vision {
                 // No tags visible. Default to single-tag std devs
                 curStdDevs = kSingleTagStdDevs;
             } else {
+                // ----- Original code 
+
                 // One or more tags visible, run the full heuristic.
+                // avgDist /= numTags;
+                // // Decrease std devs if multiple targets are visible
+                // if (numTags > 1) estStdDevs = kMultiTagStdDevs;
+                // // Increase std devs based on (average) distance
+                // if (numTags == 1 && avgDist > 4)
+                //     estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
+                // else estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
+                // curStdDevs = estStdDevs;
+
+
+                // not accounting for dist
+                // avgDist /= numTags;
+                // // Decrease std devs if multiple targets are visible
+                // if (numTags > 1) 
+                // estStdDevs = kMultiTagStdDevs;
+                // else
+                // estStdDevs = kSingleTagStdDevs;
+
+                // using dist
                 avgDist /= numTags;
                 // Decrease std devs if multiple targets are visible
-                if (numTags > 1) estStdDevs = kMultiTagStdDevs;
-                // Increase std devs based on (average) distance
-                if (numTags == 1 && avgDist > 4)
-                    estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
-                else estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
+                if (numTags > 1) 
+                estStdDevs = kMultiTagStdDevs.times(avgDist/3);
+                else
+                    if (avgDist < 2)
+                        estStdDevs = kSingleTagStdDevs.times(avgDist/9);
+                    else
+                        estStdDevs = kSingleTagStdDevs.times(avgDist/2);
+                        
                 curStdDevs = estStdDevs;
             }
         }

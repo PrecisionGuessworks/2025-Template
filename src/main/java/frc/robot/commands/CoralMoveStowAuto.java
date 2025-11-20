@@ -1,0 +1,116 @@
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
+
+package frc.robot.commands;
+
+import javax.naming.PartialResultException;
+
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants;
+import frc.robot.RobotContainer;
+import frc.robot.subsystems.ElevatorSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.ArmSubsystem;
+
+
+public class CoralMoveStowAuto extends Command {
+//  private final IntakeSubsystem m_intake;
+  private final ElevatorSubsystem m_elevator;
+  private final ArmSubsystem m_arm;
+  public int pastscoreheight = 0;
+  public boolean trueendtrigger = false;
+  private Timer m_placeTimer = new Timer();
+  private Timer m_OveridTimer = new Timer();
+  private Timer m_moveSlow = new Timer();
+  private boolean m_atscore = false;
+
+  public CoralMoveStowAuto(
+ //     IntakeSubsystem intakeSubsystem,
+      ElevatorSubsystem elevatorSubsystem,
+      ArmSubsystem armSubsystem) {
+ //   m_intake = intakeSubsystem;
+    m_elevator = elevatorSubsystem;
+    m_arm = armSubsystem;
+
+    // Use addRequirements() here to declare subsystem dependencies.
+    addRequirements( elevatorSubsystem, armSubsystem);
+  }
+
+  // Called when the command is initially scheduled.
+  @Override
+  public void initialize() {
+    m_OveridTimer.restart();
+    m_placeTimer.reset();
+    m_moveSlow.reset();
+    // if (m_elevator.isAtScore()){
+    //   m_atscore = true;
+    // }
+    t1 = true;
+    t2 = true;
+    
+    
+  }
+
+  // Called every time the scheduler runs while the command is scheduled.
+  private boolean t1 = true;
+  private boolean t2=true;
+  @Override
+  public void execute() {
+
+    // if(m_elevator.isAtScore()||m_OveridTimer.hasElapsed(1.5)){
+    //   m_moveSlow.restart();
+    //  }
+    //  if(m_atscore||m_moveSlow.hasElapsed(0.4)||m_OveridTimer.hasElapsed(1.5)){
+    //   m_arm.setArmRollerCurrent(120, 65);
+    //   m_arm.setRollerVelocity(Constants.Arm.outtakeVelocity);
+    //   m_placeTimer.restart();
+
+    // }
+
+  if((m_elevator.isAtScore()||m_OveridTimer.hasElapsed(1.5))&&t1){
+      m_moveSlow.restart();
+      t1 = false;
+     }
+     if((m_atscore||m_moveSlow.hasElapsed(0.25)||m_OveridTimer.hasElapsed(1.5))&&t2){
+      m_arm.setArmRollerCurrent(120, 65);
+      m_arm.setRollerVelocity(Constants.Arm.outtakeVelocity);
+      m_placeTimer.restart();
+      t2 = false;
+
+    }
+
+  }
+
+  // Called once the command ends or is interrupted.
+  @Override
+  public void end(boolean interrupted) {
+  
+    if (interrupted){
+      m_arm.setArmRollerCurrent(120, 65);
+      m_arm.setRollerVelocity(Constants.Arm.outtakeVelocity);
+      System.out.println("interrupted");
+    }
+
+    m_arm.setArmAngle(Constants.Arm.armStowAngle);
+   m_arm.setWristAngle(Constants.Arm.wristStowAngle);
+   m_arm.setArmRollerCurrent(30, 60);
+    m_arm.setRollerVelocity(0);
+    RobotContainer.arm.setHasPiece(false);
+    if (m_elevator.getHeightLocation()!=1){
+    m_elevator.setHeight(Constants.Elevator.PreStow);
+    }
+
+    
+  
+  
+    
+  }
+
+  // Returns true when the command should end.
+  @Override
+  public boolean isFinished() {
+    return m_placeTimer.hasElapsed(0.25) ; //|| !m_elevator.isAtScore()
+  }
+}
